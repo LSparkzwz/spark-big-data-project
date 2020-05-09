@@ -1,69 +1,96 @@
 import java.text.SimpleDateFormat
 import java.util.Date
-
 import org.apache.spark.{SparkConf, SparkContext}
 
-object Helpers  {
-  def getPercentVariationInterval(
-                                   prevStartClose: Double,
-                                   prevEndClose: Double,
-                                   prevStartDate: Date,
-                                   prevEndDate: Date,
-                                   newClose: Double,
-                                   newDate: Date): (Double, Double, Date, Date) =
-  {
+case class StockInfo(close: Double, volume: Long, date: Date)
+
+case class JobOneAccumulator(
+                              startClose: Double,
+                              endClose: Double,
+                              startDate: Date,
+                              endDate: Date,
+                              minPrice: Double,
+                              maxPrice: Double,
+                              volumeSum: Long,
+                              volumeCounter: Int)
+
+//needed to calculate the Percent Variation at a later step
+case class PercentVariationInterval(startClose: Double, endClose: Double, startDate: Date, endDate: Date)
+
+object JobOneHelpers {
+  def updatePercentVariationInterval(
+                                      prevStartClose: Double,
+                                      prevEndClose: Double,
+                                      prevStartDate: Date,
+                                      prevEndDate: Date,
+                                      newClose: Double,
+                                      newDate: Date): PercentVariationInterval = {
     if (newDate.before(prevStartDate)) {
-      (newClose, prevEndClose, newDate, prevEndDate)
+      PercentVariationInterval(newClose, prevEndClose, newDate, prevEndDate)
     } else if (newDate.after(prevEndDate)) {
-      (prevStartClose, newClose, prevStartDate, newDate)
+      PercentVariationInterval(prevStartClose, newClose, prevStartDate, newDate)
     } else {
-      (prevStartClose, prevEndClose, prevStartDate, prevEndDate)
+      PercentVariationInterval(prevStartClose, prevEndClose, prevStartDate, prevEndDate)
     }
   }
 
-  //acc = startClose, endClose, startDate, endDate, minPrice, maxPrice, avgVolume
-  //values = close, volumeSum, volumeCounter, date
+  //acc = Accumulator
+  //values = StockInfo
   //returns acc
-  def seqOp(acc: (Double, Double, Date, Date, Double, Double, Long, Int), values: (Double, Long, Date))
-  : (Double, Double, Date, Date, Double, Double, Long, Int) =
-  {
-    val percentVariation = getPercentVariationInterval(acc._1, acc._2, acc._3, acc._4, values._1, values._3)
-    val minPrice = if (acc._5 < values._1 && acc._5 != -1.toDouble) acc._5 else values._1
-    val maxPrice = if (acc._6 > values._1) acc._6 else values._1
-    val averageVolumeSum = acc._7 + values._2
-    val averageVolumeCounter = acc._8 + 1
+  def seqOp(acc: JobOneAccumulator, value: StockInfo): JobOneAccumulator = {
 
-    (percentVariation._1, percentVariation._2, percentVariation._3, percentVariation._4, minPrice, maxPrice, averageVolumeSum, averageVolumeCounter)
+    val percentVariationInterval = updatePercentVariationInterval(acc.startClose, acc.endClose, acc.startDate, acc.endDate, value.close, value.date)
+    val minPrice = if (acc.minPrice < value.close && acc.minPrice != -1.toDouble) acc.minPrice else value.close
+    val maxPrice = if (acc.maxPrice > value.close) acc.maxPrice else value.close
+    val volumeSum = acc.volumeSum + value.volume
+    val volumeCounter = acc.volumeCounter + 1
+
+    JobOneAccumulator(
+      percentVariationInterval.startClose,
+      percentVariationInterval.endClose,
+      percentVariationInterval.startDate,
+      percentVariationInterval.endDate,
+      minPrice,
+      maxPrice,
+      volumeSum,
+      volumeCounter)
   }
 
-  //acc1 and 2 = startClose, endClose, startDate, endDate, minPrice, maxPrice, avgVolume
-  //returns acc
-  def compOp(acc1: (Double, Double, Date, Date, Double, Double, Long, Int), acc2: (Double, Double, Date, Date, Double, Double, Long, Int))
-  : (Double, Double, Date, Date, Double, Double, Long, Int) =
-  {
-    val percentVariationStart = getPercentVariationInterval(acc1._1, acc1._2, acc1._3, acc1._4, acc2._1, acc2._3)
-    val percentVariationEnd = getPercentVariationInterval(
-      percentVariationStart._1,
-      percentVariationStart._2,
-      percentVariationStart._3,
-      percentVariationStart._4,
-      acc2._2,
-      acc2._4)
+  //combines the accumulators
+  def compOp(acc1: JobOneAccumulator, acc2: JobOneAccumulator): JobOneAccumulator = {
+    //first we see if the acc2.startClose can update acc1's value
+    val percentVariationStart = updatePercentVariationInterval(acc1.startClose, acc1.endClose, acc1.startDate, acc1.endDate, acc2.startClose, acc2.startDate)
+    //then we do the same for acc2.endClose
+    val percentVariationEnd = updatePercentVariationInterval(
+      percentVariationStart.startClose,
+      percentVariationStart.endClose,
+      percentVariationStart.startDate,
+      percentVariationStart.endDate,
+      acc2.endClose,
+      acc2.endDate)
 
-    val minPrice = if (acc1._5 < acc2._5) acc1._5 else acc2._5
-    val maxPrice = if (acc1._6 > acc2._6) acc1._6 else acc2._6
-    val averageVolumeSum = acc1._7 + acc2._7
-    val averageVolumeCounter = acc1._8 + acc2._8
+    val minPrice = Math.min(acc1.minPrice, acc2.minPrice)
+    val maxPrice = Math.max(acc1.maxPrice, acc2.maxPrice)
+    val volumeSum = acc1.volumeSum + acc2.volumeSum
+    val volumeCounter = acc1.volumeCounter + acc1.volumeCounter
 
-    (percentVariationEnd._1, percentVariationEnd._2, percentVariationEnd._3, percentVariationEnd._4, minPrice, maxPrice, averageVolumeSum, averageVolumeCounter)
+    JobOneAccumulator(
+      percentVariationEnd.startClose,
+      percentVariationEnd.endClose,
+      percentVariationEnd.startDate,
+      percentVariationEnd.endDate,
+      minPrice,
+      maxPrice,
+      volumeSum,
+      volumeCounter)
   }
 
-  def roundDouble(num: Double): Double ={
-    Math.round(num * 1000) / 1000
+  def roundDouble(num: Double): Double = {
+    Math.round(num * 100) / 100
   }
 
-  def roundLong(num: Long): Double ={
-    Math.round(num * 1000) / 1000
+  def roundLong(num: Long): Double = {
+    Math.round(num * 100) / 100
   }
 
 }
@@ -79,46 +106,50 @@ object JobOne {
 
   val run = () => {
     val conf = new SparkConf()
-      .setAppName("Big Data Project")
+      .setAppName("Job One")
       .setMaster("local")
       .set("spark.eventLog.enabled", "true")
       .set("spark.eventLog.dir", spark_events)
     val sc = new SparkContext(conf)
 
+    //map returns (ticker, StockInfo)
+    //filter filters by StockInfo.date between 2008 and 2018
     val rdd = sc.textFile(historicalStockPrices)
-    val parsed = rdd.map(c => c.split(","))
-      .mapPartitionsWithIndex { (idx, row) =>
-        if (idx == 0) row.drop(1)
-        else row
-      }
-    //gets rows between 2008 and 2018
-    val filtered = parsed.filter(row => (dateFormat.parse(row(7))).after(minDate) && (dateFormat.parse(row(7))).before(maxDate))
-    //turns the dataset into a rdd with the structure: ticker, (close,volumeSum,volumeCounter,date)
-    val mapped = filtered.map(row => {
-      val date = dateFormat.parse(row(7))
-      (
-        row(0), //ticker
+      .map(row => {
+        var result = row.split(",")
+        //skip header by creating a dummy row that will be filtered
+        if (result(7) == "date") {
+          //if header, we generate dummy data that will be filtered
+          (result(0), StockInfo(0.toDouble, 0.toLong, minDate))
+        } else {
+          val date = dateFormat.parse(result(7))
+          (result(0), StockInfo(result(2).toDouble, result(6).toLong, date))
+        }
+      })
+      .filter(row => (row._2.date).after(minDate) && (row._2.date).before(maxDate))
+
+    // startClose, endClose, startDate, endDate, minPrice, maxPrice, volumeSum, volumeCounter
+    val zeroVal = JobOneAccumulator(0.toDouble, 0.toDouble, maxDate, minDate, -1.toDouble, 0.toDouble, 0.toLong, 0)
+
+
+    //aggregate returns (ticker, JobOneAccumulator)
+    //map calculates the percentVariation and averageVolume
+    //sort sorts by percentVariation
+    val result = rdd
+      .aggregateByKey(zeroVal)(JobOneHelpers.seqOp, JobOneHelpers.compOp)
+      .map(row => {
+        val averageVolume = row._2.volumeSum / row._2.volumeCounter
+        val percentVariation = ((row._2.endClose - row._2.startClose) / row._2.startClose) * 100
         (
-          row(2).toDouble, //close
-          row(6).toLong, //volumeSum
-          date) //date
-      )
-    })
-    // startClose, endClose, startDate, endDate, minPrice, maxPrice, avgVolumeSum, avgVolumeCounter
-    val zeroVal = (0.toDouble, 0.toDouble, maxDate, minDate, -1.toDouble, 0.toDouble, 0.toLong, 0)
+          row._1,
+          percentVariation,
+          row._2.minPrice,
+          row._2.maxPrice,
+          averageVolume
+        )
+      })
+      .sortBy((row) => row._2, false)
 
-    //aggregates by ticker
-    //returns rdd as ticker, (startClose, endClose, startDate, endDate, minPrice, maxPrice, avgVolumeSum, avgVolumeCounter)
-    val agg = mapped.aggregateByKey(zeroVal)(Helpers.seqOp, Helpers.compOp)
-
-    //returns result as ticker, percentVariation, minPrice, maxPrice, avgVolume sorted by percentVariatin in descending order
-    val result = agg.map(row => {
-      // volumeSum / volumeCounter
-      val averageVolume = row._2._7 / row._2._8
-      // (startClose - endClose) / endClose * 100
-      val percentVariation = ((row._2._2 - row._2._1) / row._2._1) * 100
-      (row._1, percentVariation, row._2._5, row._2._6, averageVolume)
-    }).sortBy((row) => row._2, false)
 
     result.take(10).foreach(println)
 
