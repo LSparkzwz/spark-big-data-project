@@ -126,14 +126,31 @@ object JobThree {
 
     val companiesRdd = sc.textFile(historicalStocks)
       .map(row => {
-        var result = row.split(",")
-        var realName = result(2)
-        if (result.length >= 5) { //if the company name has a "," in its name we need to avoid a wrong split
-          for (i <- 3 until result.length - 2) {
-            realName += "," + result(i)
-          }
+        val result = row.split(",")
+        val wordsWithCommasCounter = row.count(_ == '"')/2;
+        val numberOfCommasBeforeFirstWordWithCommas = row.split('"')(0).count(_ == ',');
+        //if company name and sector have commas
+        if (wordsWithCommasCounter == 2) {
+          val companyName = row.split('"')(1)
+          (result(0), companyName)
         }
-        (result(0), realName)
+          //if only company name has commas
+        else if(wordsWithCommasCounter == 1 && numberOfCommasBeforeFirstWordWithCommas < 4){
+          (result(0), row.split('"')(1))
+        }
+        //either only sector has commas or none has commas
+        else{
+          (result(0), result(2))
+        }
+ /*         //if sector doesn't have commas
+        else {
+          var companyName = result(2)
+          if (result.length >= 5) { //if the company name has a "," in its name we need to avoid a wrong split
+            for (i <- 3 until result.length - (wordsWithCommasCounter + 1)) {
+              companyName += "," + result(i)
+            }
+          }
+          (result(0), companyName)*/
       })
 
     var zeroVal = TrendsByTicker(Array[String](), Array())
@@ -179,7 +196,8 @@ object JobThree {
       })
     //.sortBy((row) => row._2) //maybe sort result by alphabetical order?
 
-    result.take(10).foreach(println)
+    result.foreach(println)
+
 
   }
 }
