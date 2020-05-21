@@ -194,6 +194,7 @@ object JobThree {
       .reduceByKey((accumulator, value) => {
         accumulator + "; " + value
       })
+      .filter(row => row._2.contains(";")) 
     //.sortBy((row) => row._2) //maybe sort result by alphabetical order?
 
     result.foreach(println)
