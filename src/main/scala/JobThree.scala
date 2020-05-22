@@ -33,6 +33,7 @@ object TrendByCompany {
     //if acc doesn't have the ticker of value yet we initialize the respective trends
     if (!acc.tickers.contains(value.ticker)) {
       var initializedTrends = Array(
+        val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
         YearlyTrend("2016", 0.toDouble, dateFormat.parse("2017-01-01"), 0.toDouble, dateFormat.parse("2015-12-31")),
         YearlyTrend("2017", 0.toDouble, dateFormat.parse("2018-01-01"), 0.toDouble, dateFormat.parse("2016-12-31")),
         YearlyTrend("2018", 0.toDouble, dateFormat.parse("2019-01-01"), 0.toDouble, dateFormat.parse("2017-12-31")))
@@ -115,6 +116,7 @@ object JobThree {
         if (result(7) == "date") {
           (result(0), Stock(result(0), 0.toDouble, minDate))
         } else {
+          val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
           val date = dateFormat.parse(result(7))
           (result(0), Stock(result(0), result(2).toDouble, date))
         }
