@@ -15,6 +15,8 @@ import scala.Tuple3;
 
 // Used the webpage https://spark.apache.org/docs/latest/rdd-programming-guide.html as reference
 
+//calculation of the means: https://math.stackexchange.com/questions/115091/is-the-average-of-the-averages-equal-to-the-average-of-all-the-numbers-originall
+
 public class SparkEsDue {
 
     //classi create nell' ottica di utilizzarlo nel metodo ReduceByKey,
@@ -47,13 +49,15 @@ public class SparkEsDue {
         public Double pricesMean;
         public Double volumeMean;
         public Double percentVarMean;
-        public Integer count; //come fosse un wordcount, metto 1 e poi sommo
+        public Integer countForPriceAndVolume;
+        public Integer countForPercentVar; //come un wordcount metto 1 e poi sommo
 
-        public Trend(Double pricesMean, Double volumeMean, Double percentVarMean, Integer count) {
+        public Trend(Double pricesMean, Double volumeMean, Double percentVarMean, Integer countForPriceAndVolume, Integer countForPercentVar) {
             this.pricesMean = pricesMean;
             this.volumeMean = volumeMean;
             this.percentVarMean = percentVarMean;
-            this.count = count;
+            this.countForPriceAndVolume = countForPriceAndVolume;
+            this.countForPercentVar = countForPercentVar;
         }
     }
 
@@ -95,6 +99,8 @@ public class SparkEsDue {
             }
             return actualDate.compareTo(finalReferenceDate) > 0;
         }).mapToPair(line -> new Tuple2<>(line[0], new String[] {line[2], line[6], line[7]}));//later called pair._2().2().[...]
+
+        //join
         JavaPairRDD<String, Tuple2<String, String[]>> joinDataset = tickerAndCompanySectorTuple.join(stockPricesTuple);
 
         //questo è il dataset di join, con chiave una tupla contenente ticker, settore e anno, e valore un oggetto Trend
@@ -178,21 +184,22 @@ public class SparkEsDue {
                     Double pricesSum = line._2().pricesSum;
                     Integer count = line._2().count;
 
-                    Double volumeMean = volumeSum/count;
-                    Double priceMean = pricesSum/count;
+                    /*Double volumeMean = volumeSum/count;
+                    Double priceMean = pricesSum/count; */
                     Double percentVariation = ((lastClosePrice - firstClosePrice)/firstClosePrice)*100;
 
-                    return new Tuple2<>(new Tuple2<>(line._1()._2(), line._1()._3()), new Trend(priceMean, volumeMean, percentVariation,1));
+                    return new Tuple2<>(new Tuple2<>(line._1()._2(), line._1()._3()), new Trend(pricesSum, volumeSum, percentVariation, count, 1));
                 });
 
         JavaPairRDD<Tuple2<String, String>, Trend> finalReducedByYearAndSector = newComputationByYearAndSector.reduceByKey(
                 (firstTrend, secondTrend) -> {
-                    Double aggregatedVolumeMeans = firstTrend.volumeMean + secondTrend.volumeMean;
-                    Double aggregatedPriceMeans = firstTrend.pricesMean + secondTrend.pricesMean;
+                    Double aggregatedVolumeForMeans = firstTrend.volumeMean + secondTrend.volumeMean;
+                    Double aggregatedPriceForMeans = firstTrend.pricesMean + secondTrend.pricesMean;
                     Double aggregatedPercentVariation = firstTrend.percentVarMean + secondTrend.percentVarMean;
-                    Integer countTotal = firstTrend.count + secondTrend.count;
+                    Integer countTotalForPriceAndVolume = firstTrend.countForPriceAndVolume + secondTrend.countForPriceAndVolume;
+                    Integer countTotalForPercentVar = firstTrend.countForPercentVar + secondTrend.countForPercentVar;
 
-                    return new Trend(aggregatedPriceMeans, aggregatedVolumeMeans, aggregatedPercentVariation, countTotal);
+                    return new Trend(aggregatedPriceForMeans, aggregatedVolumeForMeans, aggregatedPercentVariation, countTotalForPriceAndVolume, countTotalForPercentVar);
                 });
 
         //calcoli della media finale e stampa dei risultati
@@ -200,9 +207,9 @@ public class SparkEsDue {
         JavaRDD<String> finalResultAsString = finalReducedByYearAndSector.map(
                 line -> {
                     Trend trendToElaborate = line._2();
-                    Double finalVolumeMeans = trendToElaborate.volumeMean / trendToElaborate.count;
-                    Double finalPercentVariation = trendToElaborate.percentVarMean / trendToElaborate.count;
-                    Double finalPricesMeans = trendToElaborate.pricesMean / trendToElaborate.count;
+                    Double finalVolumeMeans = trendToElaborate.volumeMean / trendToElaborate.countForPriceAndVolume;
+                    Double finalPricesMeans = trendToElaborate.pricesMean / trendToElaborate.countForPriceAndVolume;
+                    Double finalPercentVariation = trendToElaborate.percentVarMean / trendToElaborate.countForPercentVar;
 
                     String vol = String.format("Volume annuale medio: %.2f ", finalVolumeMeans).replace(",", ".");
                     String pv = String.format("Percentuale annuale media: %.2f", finalPercentVariation).replace(",", ".");
