@@ -122,6 +122,7 @@ object JobOne {
           //if header, we generate dummy data that will be filtered
           (result(0), StockInfo(0.toDouble, 0.toLong, minDate))
         } else {
+          val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
           val date = dateFormat.parse(result(7))
           (result(0), StockInfo(result(2).toDouble, result(6).toLong, date))
         }
