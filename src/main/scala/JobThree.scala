@@ -172,22 +172,22 @@ object JobThree {
       .map(row => {
         val trends = row._2.trends
         //keeps the sums of variances and a counter needed for the average
-        var percentVarianceSums = Array(0, 0, 0)
+        var percentVarianceSums = Array(0.0, 0.0, 0.0)
         val percentVarianceCounter = trends.length
         //we have an array like this [[2016 trend, 2017 trend, 2018 trend], [2016..,2017, 2018] ...]
         // for every ticker the company has, we have to merge them
         for (i <- 0 until trends.length) {
           val trend = trends(i)
           for (j <- 0 until trend.length) {
-            val percentVariance = Math.round(((trend(j).endClose - trend(j).startClose) / trend(j).startClose) * 100)
-            percentVarianceSums(j) += percentVariance.toInt
+            val percentVariance = (trend(j).endClose - trend(j).startClose) / trend(j).startClose) * 100
+            percentVarianceSums(j) += percentVariance
           }
         }
         var trendResultsBuffer = ArrayBuffer[String]()
         for (k <- 0 until percentVarianceSums.length) {
           val percentVarianceAverage = Math.round(percentVarianceSums(k) / percentVarianceCounter)
           var sign = ": "
-          if (percentVarianceAverage > 0) sign += "+"
+          if (percentVarianceAverage.toInt > 0) sign += "+"
           trendResultsBuffer += "201" + (6 + k).toString + sign + percentVarianceAverage.toString + "%"
         }
         val trendResults = trendResultsBuffer.toArray
