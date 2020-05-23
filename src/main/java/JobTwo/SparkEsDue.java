@@ -3,6 +3,8 @@ package JobTwo;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -204,24 +206,38 @@ public class SparkEsDue {
 
         //calcoli della media finale e stampa dei risultati
 
-        JavaRDD<String> finalResultAsString = finalReducedByYearAndSector.map(
-                line -> {
-                    Trend trendToElaborate = line._2();
-                    Double finalVolumeMeans = trendToElaborate.volumeMean / trendToElaborate.countForPriceAndVolume;
-                    Double finalPricesMeans = trendToElaborate.pricesMean / trendToElaborate.countForPriceAndVolume;
-                    Double finalPercentVariation = trendToElaborate.percentVarMean / trendToElaborate.countForPercentVar;
+        List<Tuple2<Tuple2<String, String>, Trend>> finalResultAsRDDString = finalReducedByYearAndSector.collect();
 
-                    String vol = String.format("Volume annuale medio: %.2f ", finalVolumeMeans).replace(",", ".");
-                    String pv = String.format("Percentuale annuale media: %.2f", finalPercentVariation).replace(",", ".");
-                    String sp = String.format("Quotazione giornaliera media: %.2f", finalPricesMeans).replace(",", ".");
+        ConcurrentHashMap<String, String> resultMap = new ConcurrentHashMap<>();
 
-                    return String.format("Risultati per il settore %s per l' anno %s : %s, %s, %s", line._1()._1(), line._1()._2(), vol, pv, sp);
-                });
+        for (Tuple2<Tuple2<String, String>, Trend> line : finalResultAsRDDString) {
 
-        finalResultAsString.saveAsTextFile(args[2]);
+            Trend trendToElaborate = line._2();
+            Double finalVolumeMeans = trendToElaborate.volumeMean / trendToElaborate.countForPriceAndVolume;
+            Double finalPricesMeans = trendToElaborate.pricesMean / trendToElaborate.countForPriceAndVolume;
+            Double finalPercentVariation = trendToElaborate.percentVarMean / trendToElaborate.countForPercentVar;
 
+            String vol = String.format("Volume annuale medio: %.2f ", finalVolumeMeans).replace(",", ".");
+            String pv = String.format("Percentuale annuale media: %.2f", finalPercentVariation).replace(",", ".");
+            String sp = String.format("Quotazione giornaliera media: %.2f", finalPricesMeans).replace(",", ".");
+
+            String sector = line._1()._1();
+            String year = line._1()._2();
+            String newOutput = String.format("Per l' anno %s : %s, %s, %s", year, vol, pv, sp);
+            if (resultMap.containsKey(sector)) {
+                String tmp = resultMap.get(sector);
+                String stringToReturn = tmp + " - " + newOutput;
+                resultMap.replace(sector, stringToReturn);
+            } else {
+                resultMap.put(sector, newOutput);
+            }
+        }
+
+         for (String line : resultMap.keySet()){
+            String key = line;
+            String value = resultMap.get(key);
+            System.out.println("Risultati per il settore : " + key + ": " + value);
+        }
         sc.stop();
-
     }
-
 }
