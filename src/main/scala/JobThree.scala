@@ -32,8 +32,8 @@ object TrendByCompany {
     val valueYear = (value.year.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()).getYear()
     //if acc doesn't have the ticker of value yet we initialize the respective trends
     if (!acc.tickers.contains(value.ticker)) {
+      val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
       var initializedTrends = Array(
-        val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
         YearlyTrend("2016", 0.toDouble, dateFormat.parse("2017-01-01"), 0.toDouble, dateFormat.parse("2015-12-31")),
         YearlyTrend("2017", 0.toDouble, dateFormat.parse("2018-01-01"), 0.toDouble, dateFormat.parse("2016-12-31")),
         YearlyTrend("2018", 0.toDouble, dateFormat.parse("2019-01-01"), 0.toDouble, dateFormat.parse("2017-12-31")))
@@ -93,8 +93,8 @@ object TrendByCompany {
 
 
 object JobThree {
-  val historicalStockPrices = "resources/historical_stock_prices.csv"
-  val historicalStocks = "resources/historical_stocks.csv"
+  val historicalStockPrices = "/resources/historical_stock_prices.csv"
+  val historicalStocks = "/resources/historical_stocks.csv"
   val spark_events = "/tmp/spark-events"
   //val historicalStockPrices = "resources/testprices.csv"
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
@@ -179,7 +179,7 @@ object JobThree {
         for (i <- 0 until trends.length) {
           val trend = trends(i)
           for (j <- 0 until trend.length) {
-            val percentVariance = (trend(j).endClose - trend(j).startClose) / trend(j).startClose) * 100
+            val percentVariance = ((trend(j).endClose - trend(j).startClose) / trend(j).startClose) * 100
             percentVarianceSums(j) += percentVariance
           }
         }

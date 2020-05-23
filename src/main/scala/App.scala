@@ -1,7 +1,12 @@
 object App{
   def main(args: Array[String]) {
-    JobOne.run()
-    JobThree.run()
+    if(args(0) == "1"){
+      println("Running job 1")
+      JobOne.run()
+    }else{
+      println("Running job 3")
+      JobThree.run()
+    }
   }
 }
 

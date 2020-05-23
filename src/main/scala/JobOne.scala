@@ -96,8 +96,8 @@ object JobOneHelpers {
 }
 
 object JobOne {
-  val historicalStockPrices = "resources/historical_stock_prices.csv"
-  val historicalStocks = "resources/historical_stocks.csv"
+  val historicalStockPrices = "/resources/historical_stock_prices.csv"
+  val historicalStocks = "/resources/historical_stocks.csv"
   val spark_events = "/tmp/spark-events"
   //val historicalStockPrices = "resources/testprices.csv"
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
