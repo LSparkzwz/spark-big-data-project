@@ -1,21 +1,24 @@
-Ogni riga del primo (historical_stock_prices) ha i seguenti campi:
-• ticker: simbolo univoco dell’azione (https://en.wikipedia.org/wiki/Ticker_symbol)
-• open: prezzo di apertura
-• close: prezzo di chiusura
-• adj_close: prezzo di chiusura “modificato” (potete trascurarlo)
-• lowThe: prezzo minimo
-• highThe: prezzo massimo
-• volume: numero di transazioni
-• date: data nel formato aaaa-mm-gg
+Relazione: https://github.com/LSparkzwz/spark-big-data-project/blob/master/paper-ita.pdf
 
-Il secondo (historical_stocks) ha invece questi campi:
-• ticker: simbolo dell’azione
-• exchange: NYSE o NASDAQ
-• name: nome dell’azienda
-• sector: settore dell’azienda
-• industry: industria di riferimento per l’azienda
+Ogni riga del primo (historical_stock_prices) ha i seguenti campi:  
+• ticker: simbolo univoco dell’azione (https://en.wikipedia.org/wiki/Ticker_symbol)  
+• open: prezzo di apertura  
+• close: prezzo di chiusura  
+• adj_close: prezzo di chiusura “modificato” (potete trascurarlo)  
+• lowThe: prezzo minimo  
+• highThe: prezzo massimo  
+• volume: numero di transazioni  
+• date: data nel formato aaaa-mm-gg  
+
+Il secondo (historical_stocks) ha invece questi campi:  
+• ticker: simbolo dell’azione  
+• exchange: NYSE o NASDAQ  
+• name: nome dell’azienda  
+• sector: settore dell’azienda  
+• industry: industria di riferimento per l’azienda  
 
 
+Obiettivi:  
 
 1. Un job che sia in grado di generare le statistiche di ciascuna azione tra il 2008 e il 2018 indicando, per ogni azione: (a) il
 simbolo, (b) la variazione della quotazione (differenza percentuale arrotondata tra i prezzi di chiusura iniziale e finale
